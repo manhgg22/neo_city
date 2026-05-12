@@ -1,0 +1,100 @@
+{"id": "pricing_001", "query": "Căn 2PN giá bao nhiêu?", "expected_section": "pricing", "must_contain": ["2PN"], "forbidden_sections": ["legal"]}
+{"id": "pricing_002", "query": "Giá bán dự kiến căn hộ studio NEO CITY là bao nhiêu?", "expected_section": "pricing", "must_contain": ["Studio"], "forbidden_sections": ["legal"]}
+{"id": "pricing_003", "query": "Đơn giá trên m2 của NEO CITY khoảng bao nhiêu?", "expected_section": "pricing", "must_contain": ["triệu đồng"], "forbidden_sections": ["legal"]}
+{"id": "pricing_004", "query": "Tổng giá trị căn 1PN+1 là bao nhiêu?", "expected_section": "pricing", "must_contain": ["1PN"], "forbidden_sections": ["legal"]}
+{"id": "pricing_005", "query": "Bảng giá chi tiết NEO CITY như thế nào?", "expected_section": "pricing", "must_contain": ["giá"], "forbidden_sections": ["legal"]}
+{"id": "pricing_006", "query": "Căn 3PN giá dự kiến bao nhiêu tỷ?", "expected_section": "pricing", "must_contain": ["3PN"], "forbidden_sections": ["legal"]}
+{"id": "pricing_007", "query": "Giá bán nhà phố thấp tầng NEO CITY?", "expected_section": "pricing", "must_contain": ["thấp tầng"], "forbidden_sections": ["legal"]}
+{"id": "pricing_008", "query": "Chiết khấu khi thanh toán sớm bao nhiêu phần trăm?", "expected_section": "pricing", "must_contain": ["chiết khấu"], "forbidden_sections": ["legal"]}
+{"id": "pricing_009", "query": "NEO CITY có chính sách chiết khấu early bird không?", "expected_section": "pricing", "must_contain": ["chiết khấu"], "forbidden_sections": ["legal"]}
+{"id": "pricing_010", "query": "Mức giá căn hộ 2PN+1 dự kiến là bao nhiêu?", "expected_section": "pricing", "must_contain": ["2PN"], "forbidden_sections": ["legal"]}
+{"id": "pricing_011", "query": "Diện tích căn studio NEO CITY là bao nhiêu m2?", "expected_section": "pricing", "must_contain": ["m²"], "forbidden_sections": ["legal"]}
+{"id": "pricing_012", "query": "Giá townhouse NEO CITY khoảng bao nhiêu?", "expected_section": "pricing", "must_contain": ["Townhouse"], "forbidden_sections": ["legal"]}
+{"id": "pricing_013", "query": "Khung giá bán dự kiến căn hộ cao tầng?", "expected_section": "pricing", "must_contain": ["cao tầng"], "forbidden_sections": ["legal"]}
+{"id": "pricing_014", "query": "NEO CITY định giá bao nhiêu triệu một m2?", "expected_section": "pricing", "must_contain": ["triệu"], "forbidden_sections": ["legal"]}
+{"id": "pricing_015", "query": "Diện tích căn 2PN là bao nhiêu m2?", "expected_section": "pricing", "must_contain": ["2PN"], "forbidden_sections": ["legal"]}
+{"id": "pricing_016", "query": "Chính sách chiết khấu giới thiệu khách mua là bao nhiêu?", "expected_section": "pricing", "must_contain": ["chiết khấu"], "forbidden_sections": ["legal"]}
+{"id": "pricing_017", "query": "Tổng giá shophouse NEO CITY bao nhiêu?", "expected_section": "pricing", "must_contain": ["triệu"], "forbidden_sections": ["legal"]}
+{"id": "pricing_018", "query": "Giá bán căn hộ 2PN gia đình trẻ phù hợp tài chính không?", "expected_section": "pricing", "must_contain": ["2PN"], "forbidden_sections": ["legal"]}
+{"id": "pricing_019", "query": "Diện tích căn hộ 3PN NEO CITY dự kiến bao nhiêu?", "expected_section": "pricing", "must_contain": ["3PN"], "forbidden_sections": ["legal"]}
+{"id": "pricing_020", "query": "Mức giá thấp nhất của NEO CITY là bao nhiêu?", "expected_section": "pricing", "must_contain": ["triệu"], "forbidden_sections": ["legal"]}
+{"id": "legal_001", "query": "Dự án đã mở bán chưa?", "expected_section": "legal", "must_contain": ["pháp lý", "mở bán"], "forbidden_sections": ["pricing"]}
+{"id": "legal_002", "query": "NEO CITY đã được phép huy động vốn chưa?", "expected_section": "legal", "must_contain": ["huy động vốn"], "forbidden_sections": ["pricing"]}
+{"id": "legal_003", "query": "Pháp lý dự án NEO CITY hiện tại như thế nào?", "expected_section": "legal", "must_contain": ["pháp lý"], "forbidden_sections": ["pricing"]}
+{"id": "legal_004", "query": "Có được đặt cọc mua NEO CITY chưa?", "expected_section": "legal", "must_contain": ["pháp lý"], "forbidden_sections": ["pricing"]}
+{"id": "legal_005", "query": "Dự án đã có sổ đỏ chưa?", "expected_section": "legal", "must_contain": ["pháp lý"], "forbidden_sections": ["pricing"]}
+{"id": "legal_006", "query": "NEO CITY đã đủ điều kiện kinh doanh bất động sản chưa?", "expected_section": "legal", "must_contain": ["pháp lý"], "forbidden_sections": ["pricing"]}
+{"id": "legal_007", "query": "Khi nào có thể ký hợp đồng mua bán?", "expected_section": "legal", "must_contain": ["pháp lý"], "forbidden_sections": ["pricing"]}
+{"id": "legal_008", "query": "Chủ đầu tư NEO CITY là ai?", "expected_section": "legal", "must_contain": ["NEOLAB"], "forbidden_sections": []}
+{"id": "legal_009", "query": "Dự án đã được phê duyệt quy hoạch chưa?", "expected_section": "legal", "must_contain": ["quy hoạch"], "forbidden_sections": ["pricing"]}
+{"id": "legal_010", "query": "Hồ sơ pháp lý NEO CITY cần hoàn thiện những gì?", "expected_section": "legal", "must_contain": ["hồ sơ"], "forbidden_sections": ["pricing"]}
+{"id": "sales_policy_001", "query": "Chính sách thanh toán NEO CITY như thế nào?", "expected_section": "sales_policy", "must_contain": ["thanh toán"], "forbidden_sections": ["legal"]}
+{"id": "sales_policy_002", "query": "Có được vay ngân hàng mua NEO CITY không?", "expected_section": "sales_policy", "must_contain": ["vay"], "forbidden_sections": ["legal"]}
+{"id": "sales_policy_003", "query": "Booking NEO CITY cần đặt bao nhiêu tiền?", "expected_section": "sales_policy", "must_contain": ["Booking"], "forbidden_sections": ["legal"]}
+{"id": "sales_policy_004", "query": "Có chính sách trả góp 70% ngân hàng không?", "expected_section": "sales_policy", "must_contain": ["vay"], "forbidden_sections": ["legal"]}
+{"id": "sales_policy_005", "query": "Ân hạn gốc 24 tháng áp dụng cho loại căn nào?", "expected_section": "sales_policy", "must_contain": ["ân hạn"], "forbidden_sections": ["legal"]}
+{"id": "sales_policy_006", "query": "Combo chính sách cho gia đình trẻ gồm những gì?", "expected_section": "sales_policy", "must_contain": ["Gia đình trẻ", "2PN"], "forbidden_sections": ["legal"]}
+{"id": "sales_policy_007", "query": "Phí quản lý NEO CITY mấy năm đầu được miễn?", "expected_section": "sales_policy", "must_contain": ["phí quản lý"], "forbidden_sections": ["legal"]}
+{"id": "sales_policy_008", "query": "Chính sách nào hấp dẫn nhất tại NEO CITY?", "expected_section": "sales_policy", "must_contain": ["chính sách"], "forbidden_sections": ["legal"]}
+{"id": "sales_policy_009", "query": "NEO FAMILY MOVE là chính sách gì?", "expected_section": "sales_policy", "must_contain": ["NEO FAMILY MOVE"], "forbidden_sections": ["legal"]}
+{"id": "sales_policy_010", "query": "Chính sách thanh toán nhanh được chiết khấu bao nhiêu?", "expected_section": "sales_policy", "must_contain": ["chiết khấu"], "forbidden_sections": ["legal"]}
+{"id": "product_001", "query": "NEO CITY có những loại sản phẩm nào?", "expected_section": "factsheet", "must_contain": ["sản phẩm"], "forbidden_sections": ["legal"]}
+{"id": "product_002", "query": "Dự án có bao nhiêu căn hộ tổng cộng?", "expected_section": "factsheet", "must_contain": ["căn"], "forbidden_sections": ["legal"]}
+{"id": "product_003", "query": "Căn 1PN+1 có diện tích bao nhiêu?", "expected_section": "pricing", "must_contain": ["1PN"], "forbidden_sections": ["legal"]}
+{"id": "product_004", "query": "NEO CITY có căn studio không?", "expected_section": "pricing", "must_contain": ["Studio"], "forbidden_sections": ["legal"]}
+{"id": "product_005", "query": "Sản phẩm thấp tầng NEO CITY gồm những loại nào?", "expected_section": "pricing", "must_contain": ["thấp tầng"], "forbidden_sections": ["legal"]}
+{"id": "product_006", "query": "Quy mô dự án NEO CITY là bao nhiêu hecta?", "expected_section": "factsheet", "must_contain": ["dự án"], "forbidden_sections": ["legal"]}
+{"id": "product_007", "query": "NEO CITY có bao nhiêu tòa nhà?", "expected_section": "factsheet", "must_contain": ["tòa"], "forbidden_sections": ["legal"]}
+{"id": "product_008", "query": "Mật độ xây dựng NEO CITY là bao nhiêu phần trăm?", "expected_section": "factsheet", "must_contain": ["dự án"], "forbidden_sections": ["legal"]}
+{"id": "product_009", "query": "Smart home tích hợp tại NEO CITY như thế nào?", "expected_section": "factsheet", "must_contain": ["smart"], "forbidden_sections": ["legal"]}
+{"id": "product_010", "query": "Căn hộ NEO CITY bàn giao hoàn thiện hay thô?", "expected_section": "factsheet", "must_contain": ["bàn giao"], "forbidden_sections": ["legal"]}
+{"id": "product_011", "query": "Số tầng tòa nhà cao tầng NEO CITY là bao nhiêu?", "expected_section": "factsheet", "must_contain": ["tầng"], "forbidden_sections": ["legal"]}
+{"id": "product_012", "query": "NEO CITY có căn penthouse không?", "expected_section": "factsheet", "must_contain": ["căn"], "forbidden_sections": ["legal"]}
+{"id": "product_013", "query": "Tỷ lệ căn 2PN trong tổng số căn hộ là bao nhiêu?", "expected_section": "factsheet", "must_contain": ["2PN"], "forbidden_sections": ["legal"]}
+{"id": "product_014", "query": "Căn hộ dual key tại NEO CITY có không?", "expected_section": "factsheet", "must_contain": ["căn"], "forbidden_sections": ["legal"]}
+{"id": "product_015", "query": "Tiến độ xây dựng NEO CITY dự kiến như thế nào?", "expected_section": "factsheet", "must_contain": ["tiến độ", "xây dựng"], "forbidden_sections": ["legal"]}
+{"id": "location_001", "query": "Mê Linh kết nối sân bay Nội Bài thế nào?", "expected_section": "location_connectivity", "must_contain": ["Nội Bài", "Mê Linh"], "forbidden_sections": ["legal"]}
+{"id": "location_002", "query": "NEO CITY cách trung tâm Hà Nội bao xa?", "expected_section": "location_connectivity", "must_contain": ["Hà Nội"], "forbidden_sections": ["legal"]}
+{"id": "location_003", "query": "Vành đai 4 ảnh hưởng đến NEO CITY như thế nào?", "expected_section": "location_connectivity", "must_contain": ["Vành đai 4"], "forbidden_sections": ["legal"]}
+{"id": "location_004", "query": "Hạ tầng giao thông khu vực Mê Linh đang phát triển ra sao?", "expected_section": "location_connectivity", "must_contain": ["giao thông", "Mê Linh"], "forbidden_sections": ["legal"]}
+{"id": "location_005", "query": "NEO CITY gần những khu công nghiệp nào?", "expected_section": "location_connectivity", "must_contain": ["công nghiệp"], "forbidden_sections": ["legal"]}
+{"id": "location_006", "query": "Từ NEO CITY đến Hồ Tây mất bao lâu?", "expected_section": "location_connectivity", "must_contain": ["Hà Nội"], "forbidden_sections": ["legal"]}
+{"id": "location_007", "query": "Liên kết vùng của NEO CITY như thế nào?", "expected_section": "location_connectivity", "must_contain": ["liên kết"], "forbidden_sections": ["legal"]}
+{"id": "location_008", "query": "Quốc lộ 23 kết nối NEO CITY với đâu?", "expected_section": "location_connectivity", "must_contain": ["Quốc lộ"], "forbidden_sections": ["legal"]}
+{"id": "location_009", "query": "Đông Anh và Mê Linh có gì khác nhau về vị trí?", "expected_section": "location_connectivity", "must_contain": ["Mê Linh"], "forbidden_sections": ["legal"]}
+{"id": "location_010", "query": "Mê Linh có lợi thế về việc làm và logistics như thế nào?", "expected_section": "location_connectivity", "must_contain": ["Mê Linh"], "forbidden_sections": ["legal"]}
+{"id": "location_011", "query": "NEO CITY tọa lạc tại khu vực nào của Hà Nội?", "expected_section": "location_connectivity", "must_contain": ["Mê Linh"], "forbidden_sections": ["legal"]}
+{"id": "location_012", "query": "Đường Võ Văn Kiệt kết nối Mê Linh như thế nào?", "expected_section": "location_connectivity", "must_contain": ["Võ Văn Kiệt"], "forbidden_sections": ["legal"]}
+{"id": "location_013", "query": "Từ Mê Linh vào nội thành Hà Nội mất bao lâu?", "expected_section": "location_connectivity", "must_contain": ["Mê Linh"], "forbidden_sections": ["legal"]}
+{"id": "location_014", "query": "Sóc Sơn có liên kết gì với Mê Linh?", "expected_section": "location_connectivity", "must_contain": ["Mê Linh"], "forbidden_sections": ["legal"]}
+{"id": "location_015", "query": "NEO CITY có gần trường học và bệnh viện không?", "expected_section": "location_connectivity", "must_contain": ["Mê Linh"], "forbidden_sections": ["legal"]}
+{"id": "amenities_001", "query": "NEO CITY có những tiện ích gì?", "expected_section": "factsheet", "must_contain": ["tiện ích"], "forbidden_sections": ["legal"]}
+{"id": "amenities_002", "query": "NEO CITY có hồ điều hòa không?", "expected_section": "factsheet", "must_contain": ["hồ"], "forbidden_sections": ["legal"]}
+{"id": "amenities_003", "query": "Bể bơi NEO CITY ở tầng mấy?", "expected_section": "factsheet", "must_contain": ["bể bơi"], "forbidden_sections": ["legal"]}
+{"id": "amenities_004", "query": "Khu vui chơi trẻ em NEO CITY như thế nào?", "expected_section": "factsheet", "must_contain": ["trẻ em", "vui chơi"], "forbidden_sections": ["legal"]}
+{"id": "amenities_005", "query": "NEO CITY có R&D hub hay co-working space không?", "expected_section": "factsheet", "must_contain": ["co-working"], "forbidden_sections": ["legal"]}
+{"id": "amenities_006", "query": "Hệ thống an ninh NEO CITY như thế nào?", "expected_section": "factsheet", "must_contain": ["an ninh"], "forbidden_sections": ["legal"]}
+{"id": "amenities_007", "query": "Quảng trường trung tâm NEO CITY rộng bao nhiêu?", "expected_section": "factsheet", "must_contain": ["quảng trường"], "forbidden_sections": ["legal"]}
+{"id": "amenities_008", "query": "NEO CITY có phòng gym không?", "expected_section": "factsheet", "must_contain": ["gym"], "forbidden_sections": ["legal"]}
+{"id": "amenities_009", "query": "Mầm non trong dự án NEO CITY có không?", "expected_section": "sales_policy", "must_contain": ["mầm non"], "forbidden_sections": ["legal"]}
+{"id": "amenities_010", "query": "Tỷ lệ cây xanh NEO CITY là bao nhiêu?", "expected_section": "factsheet", "must_contain": ["cây xanh"], "forbidden_sections": ["legal"]}
+{"id": "persona_001", "query": "Gia đình trẻ phù hợp sản phẩm nào tại NEO CITY?", "expected_section": "personas", "must_contain": ["Gia đình trẻ"], "forbidden_sections": ["legal"]}
+{"id": "persona_002", "query": "Người trẻ đi làm thu nhập 20-30 triệu có phù hợp NEO CITY không?", "expected_section": "personas", "must_contain": ["người trẻ"], "forbidden_sections": ["legal"]}
+{"id": "persona_003", "query": "Khách hàng mục tiêu của NEO CITY là ai?", "expected_section": "personas", "must_contain": ["persona"], "forbidden_sections": ["legal"]}
+{"id": "persona_004", "query": "2PN phù hợp với đối tượng khách hàng nào?", "expected_section": "personas", "must_contain": ["2PN"], "forbidden_sections": ["legal"]}
+{"id": "persona_005", "query": "Người làm công nghệ hybrid work phù hợp căn hộ nào?", "expected_section": "personas", "must_contain": ["hybrid"], "forbidden_sections": ["legal"]}
+{"id": "persona_006", "query": "Nhà đầu tư mua để cho thuê nên chọn loại nào?", "expected_section": "personas", "must_contain": ["đầu tư"], "forbidden_sections": ["legal"]}
+{"id": "persona_007", "query": "NEO CITY phù hợp cho người mua căn đầu tiên không?", "expected_section": "personas", "must_contain": ["lần đầu", "mua căn đầu tiên"], "forbidden_sections": ["legal"]}
+{"id": "persona_008", "query": "Chị 38 tuổi muốn nâng cấp chất lượng sống phù hợp căn nào?", "expected_section": "personas", "must_contain": ["nâng cấp"], "forbidden_sections": ["legal"]}
+{"id": "persona_009", "query": "Persona trung tâm nhất của NEO CITY là ai?", "expected_section": "personas", "must_contain": ["persona"], "forbidden_sections": ["legal"]}
+{"id": "persona_010", "query": "NEO CITY dành cho đối tượng khách hàng nào là chính?", "expected_section": "personas", "must_contain": ["người trẻ", "gia đình trẻ"], "forbidden_sections": ["legal"]}
+{"id": "objection_001", "query": "NEO CITY xa trung tâm quá, có hạ tầng kết nối tốt không?", "expected_section": "location_connectivity", "must_contain": ["kết nối", "Mê Linh"], "forbidden_sections": ["legal"]}
+{"id": "objection_002", "query": "Pháp lý chưa hoàn thiện, có nên mua NEO CITY không?", "expected_section": "legal", "must_contain": ["pháp lý"], "forbidden_sections": []}
+{"id": "objection_003", "query": "Giá NEO CITY cao hơn thị trường, có xứng đáng không?", "expected_section": "market", "must_contain": ["giá", "thị trường"], "forbidden_sections": ["legal"]}
+{"id": "objection_004", "query": "Thanh khoản khu vực Mê Linh còn thấp, rủi ro như thế nào?", "expected_section": "market", "must_contain": ["Mê Linh"], "forbidden_sections": ["legal"]}
+{"id": "objection_005", "query": "Tiến độ xây dựng có đảm bảo đúng hạn không?", "expected_section": "legal", "must_contain": ["tiến độ", "xây dựng"], "forbidden_sections": []}
+{"id": "objection_006", "query": "Mê Linh hay bị ngập lụt không?", "expected_section": "location_connectivity", "must_contain": ["Mê Linh"], "forbidden_sections": ["legal"]}
+{"id": "objection_007", "query": "Chủ đầu tư NEOLAB có uy tín không?", "expected_section": "legal", "must_contain": ["NEOLAB"], "forbidden_sections": []}
+{"id": "objection_008", "query": "Nội thất bàn giao có đúng với cam kết không?", "expected_section": "factsheet", "must_contain": ["nội thất", "bàn giao"], "forbidden_sections": ["legal"]}
+{"id": "objection_009", "query": "Khu vực Mê Linh có tiềm năng tăng giá dài hạn không?", "expected_section": "market", "must_contain": ["Mê Linh", "thị trường"], "forbidden_sections": ["legal"]}
+{"id": "objection_010", "query": "NEO CITY có phải dự án ma hay không rõ nguồn gốc không?", "expected_section": "legal", "must_contain": ["pháp lý", "NEOLAB"], "forbidden_sections": []}

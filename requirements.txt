@@ -1,0 +1,10 @@
+python-dotenv
+pydantic
+python-docx
+qdrant-client
+fastembed
+fastapi
+uvicorn
+pytest
+numpy
+requests

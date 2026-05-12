@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import sys; sys.stdout.buffer.write\\(sys.stdin.buffer.read\\(\\)\\)\")",
+      "PowerShell(cd \"e:\\\\Manh\\\\NeoCityDataa\"; python scripts/_debug_answers.py 2>&1 | Where-Object { $_ -notmatch \"UserWarning|pooling|pinning|fastembed\" })"
+    ]
+  }
+}
