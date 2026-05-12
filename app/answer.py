@@ -439,7 +439,7 @@ def _extract_pricing_highlights(text: str, question: str, max_chars: int = 260) 
         "studio", "1pn", "1pn+1", "2pn", "2pn+1", "3pn",
         "shophouse", "townhouse", "villa", "courtyard", "can ho",
     )
-    asked_product_markers = tuple(marker for marker in product_markers if marker in question_norm)
+    asked_product_markers = _extract_asked_product_markers(question_norm, product_markers)
     money_markers = ("trieu", "ty", "m²", "m2", "dong/m", "%")
 
     scored: list[tuple[int, int, int, str]] = []
@@ -480,4 +480,24 @@ def _extract_pricing_highlights(text: str, question: str, max_chars: int = 260) 
         return _extract_relevant_lines(text, question, max_chars=max_chars)
 
     selected.sort(key=lambda x: x[0])
+    if asked_product_markers:
+        selected = [
+            item for item in selected
+            if any(marker in _normalize_for_matching(item[1]) for marker in asked_product_markers)
+        ] or selected[:1]
     return "\n".join(line for _, line in selected)
+
+
+def _extract_asked_product_markers(question_norm: str, product_markers: tuple[str, ...]) -> tuple[str, ...]:
+    """Return the most specific product markers mentioned in the question."""
+    matched = [marker for marker in product_markers if marker in question_norm]
+    if not matched:
+        return ()
+
+    matched.sort(key=len, reverse=True)
+    specific: list[str] = []
+    for marker in matched:
+        if any(marker != kept and marker in kept for kept in specific):
+            continue
+        specific.append(marker)
+    return tuple(specific)

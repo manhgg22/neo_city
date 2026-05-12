@@ -832,6 +832,35 @@ def test_chatbot_answer_from_retrieval_pricing_avoids_header_only_output() -> No
     assert "| 2PN |" not in answer
 
 
+def test_chatbot_answer_from_retrieval_pricing_uses_only_requested_product_line() -> None:
+    retrieval = {
+        "question": "Giá căn 2PN+1 dự kiến bao nhiêu?",
+        "intent": "pricing",
+        "risk_level": "high",
+        "must_use_legal_only": False,
+        "target_sections": ["pricing", "price_sheet"],
+        "chunks": [
+            {
+                "id": "neo_city_pricing_002",
+                "section": "pricing",
+                "topic": "apartment_pricing",
+                "text": (
+                    "2. Khung giá bán dự kiến\n"
+                    "2PN: 48–51 triệu đồng/m², khoảng 2,80–3,57 tỷ đồng/căn\n"
+                    "2PN+1: 45–48 triệu đồng/m², khoảng 3,15–3,84 tỷ đồng/căn\n"
+                    "Định hướng giá: 42–57 triệu đồng/m², tùy tòa, tầng, view, thời điểm mở bán."
+                ),
+                "score": 0.62,
+                "rerank_score": 1.8,
+            }
+        ],
+        "reason": None,
+    }
+    answer = chatbot_answer_from_retrieval(retrieval)
+    assert "2PN+1: 45–48 triệu đồng/m²" in answer
+    assert "2PN: 48–51 triệu đồng/m²" not in answer
+
+
 def test_chatbot_answer_from_retrieval_blocked_passthrough() -> None:
     retrieval = {
         "question": "Có cam kết lợi nhuận không?",
