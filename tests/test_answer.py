@@ -9,6 +9,7 @@ from app.answer import (
     _compute_confidence,
     _extract_relevant_lines,
     answer_from_retrieval,
+    chatbot_answer_from_retrieval,
     generate_answer,
 )
 from app.guardrails import (
@@ -735,3 +736,111 @@ def test_compute_confidence_falls_back_to_score_field() -> None:
     chunks = [{"section": "factsheet", "score": 0.55}, {"section": "factsheet", "score": 0.55}]
     conf = _compute_confidence(chunks)
     assert conf > 0.0
+
+
+# ---------------------------------------------------------------------------
+# chatbot_answer_from_retrieval demo mode
+# ---------------------------------------------------------------------------
+
+
+def test_chatbot_answer_from_retrieval_legal_is_concise() -> None:
+    retrieval = {
+        "question": "Dự án đã mở bán chưa?",
+        "intent": "legal",
+        "risk_level": "critical",
+        "must_use_legal_only": True,
+        "target_sections": ["legal"],
+        "chunks": [
+            {
+                "id": "neo_city_legal_004",
+                "section": "legal",
+                "topic": "legal_status_and_warnings",
+                "text": (
+                    "Tình trạng mở bán: Chưa mở bán\n"
+                    "Tình trạng huy động vốn: Chưa huy động vốn từ khách hàng\n"
+                    "Tài liệu này chỉ phục vụ mục đích giới thiệu định hướng phát triển dự án."
+                ),
+                "score": 0.4,
+                "rerank_score": 1.9,
+            }
+        ],
+        "reason": None,
+    }
+    answer = chatbot_answer_from_retrieval(retrieval)
+    assert "chưa mở bán chính thức" in answer.lower()
+    assert "thông báo giao dịch chính thức" in answer.lower()
+    assert "|" not in answer
+
+
+def test_chatbot_answer_from_retrieval_pricing_is_concise() -> None:
+    retrieval = {
+        "question": "Giá Studio+ dự kiến bao nhiêu?",
+        "intent": "pricing",
+        "risk_level": "high",
+        "must_use_legal_only": False,
+        "target_sections": ["pricing", "price_sheet"],
+        "chunks": [
+            {
+                "id": "neo_city_pricing_002",
+                "section": "pricing",
+                "topic": "apartment_pricing",
+                "text": (
+                    "Giá bán dự kiến\n"
+                    "Studio+: 54–57 triệu đồng/m²\n"
+                    "Định hướng giá: 42–57 triệu đồng/m², tùy tòa, tầng, view, thời điểm mở bán."
+                ),
+                "score": 0.6,
+                "rerank_score": 1.7,
+            }
+        ],
+        "reason": None,
+    }
+    answer = chatbot_answer_from_retrieval(retrieval)
+    assert "chưa phải giá bán chính thức" in answer.lower()
+    assert "54–57 triệu đồng/m²" in answer
+    assert "|" not in answer
+
+
+def test_chatbot_answer_from_retrieval_pricing_avoids_header_only_output() -> None:
+    retrieval = {
+        "question": "Giá căn 2PN dự kiến bao nhiêu?",
+        "intent": "pricing",
+        "risk_level": "high",
+        "must_use_legal_only": False,
+        "target_sections": ["pricing", "price_sheet"],
+        "chunks": [
+            {
+                "id": "neo_city_pricing_002",
+                "section": "pricing",
+                "topic": "apartment_pricing",
+                "text": (
+                    "2. Khung giá bán dự kiến\n"
+                    "| Loại sản phẩm | Diện tích dự kiến | Giá bán dự kiến | Tổng giá trị dự kiến |\n"
+                    "Studio+: 54–57 triệu đồng/m²\n"
+                    "2PN: 48–51 triệu đồng/m², khoảng 2,80–3,57 tỷ đồng/căn\n"
+                    "Định hướng giá: 42–57 triệu đồng/m², tùy tòa, tầng, view, thời điểm mở bán."
+                ),
+                "score": 0.62,
+                "rerank_score": 1.8,
+            }
+        ],
+        "reason": None,
+    }
+    answer = chatbot_answer_from_retrieval(retrieval)
+    assert "48–51 triệu đồng/m²" in answer
+    assert "| Loại sản phẩm |" not in answer
+    assert "| 2PN |" not in answer
+
+
+def test_chatbot_answer_from_retrieval_blocked_passthrough() -> None:
+    retrieval = {
+        "question": "Có cam kết lợi nhuận không?",
+        "intent": "market",
+        "risk_level": "medium",
+        "must_use_legal_only": False,
+        "target_sections": ["market"],
+        "chunks": [],
+        "reason": None,
+    }
+    answer = chatbot_answer_from_retrieval(retrieval)
+    assert answer == INVESTMENT_RETURN_RESPONSE

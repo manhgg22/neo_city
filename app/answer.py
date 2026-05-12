@@ -15,6 +15,9 @@ answer_from_retrieval(retrieval_result, min_chunks_required) -> AnswerResult
 AnswerResult
     Frozen dataclass: answer_text, used_chunk_ids, used_sections,
     confidence, answer_mode.
+
+chatbot_answer_from_retrieval(retrieval_result) -> str
+    Return a concise customer-facing answer suitable for terminal demos.
 """
 from __future__ import annotations
 
@@ -160,6 +163,28 @@ def answer_from_retrieval(
     return generate_answer(question, chunks, classification, min_chunks_required)
 
 
+def chatbot_answer_from_retrieval(
+    retrieval_result: dict,
+    min_chunks_required: int = 1,
+) -> str:
+    """Return a concise, customer-facing answer for terminal demos."""
+    answer = answer_from_retrieval(retrieval_result, min_chunks_required)
+    if answer.answer_mode != "answered":
+        return answer.answer_text
+
+    question = str(retrieval_result.get("question", "") or "")
+    chunks = list(retrieval_result.get("chunks", []) or [])
+    intent = str(retrieval_result.get("intent", "") or "")
+
+    if intent == "legal":
+        return _build_concise_legal_answer(question, chunks, answer.answer_text)
+    if intent == "pricing":
+        return _build_concise_pricing_answer(question, chunks)
+    if intent == "sales_policy":
+        return _build_concise_sales_policy_answer(question, chunks)
+    return _build_concise_general_answer(question, chunks)
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -301,3 +326,158 @@ def _compute_confidence(chunks: list[dict]) -> float:
         confidence = max(0.0, confidence - 0.10)
 
     return round(confidence, 4)
+
+
+def _build_concise_legal_answer(question: str, chunks: list[dict], fallback_text: str) -> str:
+    question_norm = _normalize_for_matching(question)
+    legal_text = "\n".join(
+        (chunk.get("text", "") or "").strip()
+        for chunk in chunks
+        if (chunk.get("section", "") or "") == "legal"
+    )
+    legal_norm = _normalize_for_matching(legal_text)
+
+    if "mo ban" in question_norm and "chua mo ban" in legal_norm:
+        return (
+            "Theo tài liệu NEO CITY hiện tại, dự án chưa mở bán chính thức. "
+            "Tài liệu cũng nêu đây mới là thông tin định hướng phát triển, chưa phải thông báo giao dịch chính thức."
+        )
+    if "dat coc" in question_norm:
+        if "chua mo ban" in legal_norm:
+            return (
+                "Theo tài liệu NEO CITY hiện tại, chưa có cơ sở để khẳng định có thể đặt cọc ngay. "
+                "Tài liệu đồng thời cho biết dự án chưa mở bán chính thức."
+            )
+        return (
+            "Theo tài liệu NEO CITY hiện tại, tôi chưa thấy căn cứ pháp lý đủ rõ để khẳng định có thể đặt cọc ngay."
+        )
+    if "huy dong von" in question_norm and "chua huy dong von tu khach hang" in legal_norm:
+        return (
+            "Theo tài liệu NEO CITY hiện tại, dự án chưa huy động vốn từ khách hàng."
+        )
+    if "phap ly" in question_norm:
+        detail = _extract_relevant_lines(legal_text, question, max_chars=260)
+        return (
+            "Theo tài liệu pháp lý hiện có của NEO CITY, dự án đang ở giai đoạn định hướng và hoàn thiện hồ sơ pháp lý. "
+            f"{_to_sentence(detail)}"
+        )
+    return _to_sentence(fallback_text)
+
+
+def _build_concise_pricing_answer(question: str, chunks: list[dict]) -> str:
+    pricing_chunk = _first_section_chunk(chunks, {"pricing", "price_sheet"})
+    if pricing_chunk is None:
+        return FALLBACK_ANSWER
+    raw_text = (pricing_chunk.get("text", "") or "").strip()
+    detail = _extract_pricing_highlights(raw_text, question, max_chars=260)
+    return (
+        "Theo tài liệu định hướng hiện tại của NEO CITY, đây là thông tin giá dự kiến, chưa phải giá bán chính thức. "
+        f"{_to_sentence(_format_demo_passage(detail))}"
+    )
+
+
+def _build_concise_sales_policy_answer(question: str, chunks: list[dict]) -> str:
+    policy_chunk = _first_section_chunk(chunks, {"sales_policy", "price_sheet"})
+    if policy_chunk is None:
+        return FALLBACK_ANSWER
+    detail = _extract_relevant_lines((policy_chunk.get("text", "") or "").strip(), question, max_chars=260)
+    return (
+        "Theo tài liệu dự kiến của NEO CITY, chính sách này đang ở mức định hướng và có thể thay đổi theo từng đợt mở bán chính thức. "
+        f"{_to_sentence(_format_demo_passage(detail))}"
+    )
+
+
+def _build_concise_general_answer(question: str, chunks: list[dict]) -> str:
+    if not chunks:
+        return FALLBACK_ANSWER
+    detail = _extract_relevant_lines((chunks[0].get("text", "") or "").strip(), question, max_chars=280)
+    return _to_sentence(f"Theo tài liệu NEO CITY, {_format_demo_passage(detail)}")
+
+
+def _first_section_chunk(chunks: list[dict], sections: set[str]) -> dict | None:
+    for chunk in chunks:
+        if (chunk.get("section", "") or "") in sections:
+            return chunk
+    return chunks[0] if chunks else None
+
+
+def _to_sentence(text: str) -> str:
+    cleaned = " ".join(part.strip() for part in text.splitlines() if part.strip())
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    if not cleaned:
+        return ""
+    return cleaned if cleaned.endswith((".", "!", "?")) else f"{cleaned}."
+
+
+def _format_demo_passage(text: str) -> str:
+    lines = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if "|" in line:
+            cells = [cell.strip() for cell in line.split("|") if cell.strip()]
+            if len(cells) >= 4 and cells[0].lower() not in {"loại sản phẩm", "---"}:
+                line = f"{cells[0]}: {cells[2]}, tổng giá trị khoảng {cells[3]}"
+            elif len(cells) >= 2 and cells[0].lower() not in {"hạng mục", "nội dung", "---"}:
+                line = f"{cells[0]}: {cells[1]}"
+            else:
+                continue
+        lines.append(line)
+    return "\n".join(lines) if lines else text
+
+
+def _extract_pricing_highlights(text: str, question: str, max_chars: int = 260) -> str:
+    """Prefer lines with actual money/range signals for concise pricing demos."""
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    if not lines:
+        return text[:max_chars].strip()
+
+    question_norm = _normalize_for_matching(question)
+    question_tokens = set(question_norm.split()) - _STOP_WORDS
+    product_markers = (
+        "studio", "1pn", "1pn+1", "2pn", "2pn+1", "3pn",
+        "shophouse", "townhouse", "villa", "courtyard", "can ho",
+    )
+    asked_product_markers = tuple(marker for marker in product_markers if marker in question_norm)
+    money_markers = ("trieu", "ty", "m²", "m2", "dong/m", "%")
+
+    scored: list[tuple[int, int, int, str]] = []
+    for idx, line in enumerate(lines):
+        line_norm = _normalize_for_matching(line)
+        line_tokens = set(line_norm.split())
+        overlap = len(question_tokens.intersection(line_tokens))
+        has_money = any(marker in line.lower() for marker in money_markers) or bool(re.search(r"\d", line))
+        has_product = any(marker in line_norm for marker in product_markers)
+        score = overlap
+        if has_money:
+            score += 5
+        if has_product:
+            score += 3
+        if asked_product_markers and any(marker in line_norm for marker in asked_product_markers):
+            score += 6
+        if "du kien" in line_norm or "dinh huong gia" in line_norm:
+            score += 2
+        if "loai san pham" in line_norm or "dien tich du kien" in line_norm or "tong gia tri du kien" in line_norm:
+            score -= 2
+        scored.append((score, -idx, idx, line))
+
+    scored.sort(reverse=True)
+
+    selected: list[tuple[int, str]] = []
+    total = 0
+    for score, _neg_idx, idx, line in scored:
+        if score <= 0 and selected:
+            continue
+        if total > 0 and total + len(line) + 1 > max_chars:
+            continue
+        selected.append((idx, line))
+        total += len(line) + 1
+        if len(selected) >= 2:
+            break
+
+    if not selected:
+        return _extract_relevant_lines(text, question, max_chars=max_chars)
+
+    selected.sort(key=lambda x: x[0])
+    return "\n".join(line for _, line in selected)
