@@ -390,8 +390,11 @@ def _build_concise_sales_policy_answer(question: str, chunks: list[dict]) -> str
 def _build_concise_general_answer(question: str, chunks: list[dict]) -> str:
     if not chunks:
         return FALLBACK_ANSWER
-    detail = _extract_relevant_lines((chunks[0].get("text", "") or "").strip(), question, max_chars=280)
-    return _to_sentence(f"Theo tài liệu NEO CITY, {_format_demo_passage(detail)}")
+    detail = _extract_relevant_lines((chunks[0].get("text", "") or "").strip(), question, max_chars=2000)
+    formatted = _format_demo_passage(detail)
+    if "\n" in formatted:
+        return f"Theo tài liệu NEO CITY:\n{formatted}"
+    return _to_sentence(f"Theo tài liệu NEO CITY, {formatted}")
 
 
 def _first_section_chunk(chunks: list[dict], sections: set[str]) -> dict | None:

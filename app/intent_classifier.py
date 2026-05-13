@@ -657,6 +657,13 @@ _PROJECT_OVERVIEW: list[str] = [
     "smart home",
     "tien do xay dung du kien",
     "tien do xay dung",
+    "tu duy",
+    "tu duy phat trien",
+    "duoc phat trien theo",
+    "xay dung theo tu duy",
+    "phat trien theo tu duy",
+    "live work play",
+    "recharge connect",
 ]
 
 _LEGAL_OVERRIDE_TERMS: list[str] = [
@@ -979,24 +986,26 @@ def classify(query: str) -> ClassificationResult:
         )
 
     # ------------------------------------------------------------------
-    # Priority 9 -- Product / unit type (medium)
-    # ------------------------------------------------------------------
-    if has_product:
-        return ClassificationResult(
-            intent="product",
-            target_sections=_PRODUCT_SECTIONS,
-            risk_level="medium",
-            must_use_legal_only=False,
-        )
-
-    # ------------------------------------------------------------------
-    # Priority 10 -- Amenities / internal facilities (low)
+    # Priority 9 -- Amenities / internal facilities (low)
+    # "tien ich" is a specific signal that must not be overridden by
+    # broad product terms like "co nhung" that appear in amenity queries.
     # ------------------------------------------------------------------
     if has_amenities:
         return ClassificationResult(
             intent="amenities",
             target_sections=_AMENITIES_SECTIONS,
             risk_level="low",
+            must_use_legal_only=False,
+        )
+
+    # ------------------------------------------------------------------
+    # Priority 10 -- Product / unit type (medium)
+    # ------------------------------------------------------------------
+    if has_product:
+        return ClassificationResult(
+            intent="product",
+            target_sections=_PRODUCT_SECTIONS,
+            risk_level="medium",
             must_use_legal_only=False,
         )
 

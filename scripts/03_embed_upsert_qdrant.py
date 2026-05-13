@@ -149,6 +149,12 @@ def create_fastembed_model(model_name: str):
     return TextEmbedding(model_name=model_name)
 
 
+def create_sparse_model():
+    from fastembed import SparseTextEmbedding
+
+    return SparseTextEmbedding(model_name="Qdrant/bm25")
+
+
 def embed_texts(
     embedder: Any,
     texts: Sequence[str],
@@ -164,6 +170,18 @@ def embed_texts(
     return result
 
 
+def embed_sparse_texts(
+    sparse_embedder: Any,
+    texts: Sequence[str],
+) -> list[models.SparseVector]:
+    result: list[models.SparseVector] = []
+    for sv in sparse_embedder.embed(texts):
+        indices = sv.indices.tolist() if hasattr(sv.indices, "tolist") else list(sv.indices)
+        values = sv.values.tolist() if hasattr(sv.values, "tolist") else list(sv.values)
+        result.append(models.SparseVector(indices=indices, values=values))
+    return result
+
+
 def build_batches(items: Sequence[Any], batch_size: int) -> Iterator[list[Any]]:
     for index in range(0, len(items), batch_size):
         yield list(items[index : index + batch_size])
@@ -174,6 +192,12 @@ def create_vector_config(vector_size: int) -> models.VectorParams:
         size=vector_size,
         distance=models.Distance.COSINE,
     )
+
+
+def create_hybrid_vector_config(vector_size: int) -> tuple[dict, dict]:
+    dense_cfg = {"dense": models.VectorParams(size=vector_size, distance=models.Distance.COSINE)}
+    sparse_cfg = {"sparse": models.SparseVectorParams()}
+    return dense_cfg, sparse_cfg
 
 
 def create_qdrant_client(settings: Settings) -> QdrantClient:
@@ -201,12 +225,15 @@ def ensure_collection(
     vector_size: int,
     recreate: bool = False,
 ) -> str:
+    dense_cfg, sparse_cfg = create_hybrid_vector_config(vector_size)
+
     if client.collection_exists(collection_name):
         if recreate:
             client.delete_collection(collection_name)
             client.create_collection(
                 collection_name=collection_name,
-                vectors_config=create_vector_config(vector_size),
+                vectors_config=dense_cfg,
+                sparse_vectors_config=sparse_cfg,
             )
             return "recreated"
 
@@ -222,7 +249,8 @@ def ensure_collection(
 
     client.create_collection(
         collection_name=collection_name,
-        vectors_config=create_vector_config(vector_size),
+        vectors_config=dense_cfg,
+        sparse_vectors_config=sparse_cfg,
     )
     return "created"
 
@@ -239,16 +267,21 @@ def create_payload_indexes(client: QdrantClient, collection_name: str) -> None:
 def build_points(
     chunks: Sequence[dict[str, Any]],
     vectors: Sequence[Sequence[float]],
+    sparse_vectors: Sequence[models.SparseVector] | None = None,
 ) -> list[models.PointStruct]:
     if len(chunks) != len(vectors):
         raise ValueError("Chunk count and vector count must match.")
 
     points: list[models.PointStruct] = []
-    for chunk, vector in zip(chunks, vectors, strict=True):
+    for i, (chunk, vector) in enumerate(zip(chunks, vectors, strict=True)):
+        if sparse_vectors is not None:
+            vec = {"dense": list(vector), "sparse": sparse_vectors[i]}
+        else:
+            vec = list(vector)
         points.append(
             models.PointStruct(
                 id=chunk_uuid(chunk["id"]),
-                vector=list(vector),
+                vector=vec,
                 payload=chunk_to_payload(chunk),
             )
         )
@@ -304,16 +337,18 @@ def run_upsert(
     schema_rules = load_schema_rules(schema_path)
     validate_chunks(chunks, schema_rules)
 
-    embedder = create_fastembed_model(settings.embedding_model)
     client = create_qdrant_client(settings)
 
-    first_batch = next(iter(build_batches(chunks, batch_size)))
-    first_vectors = embed_texts(
-        embedder,
-        [chunk["text"] for chunk in first_batch],
-        batch_size=min(batch_size, len(first_batch)) or 1,
-    )
-    vector_size = len(first_vectors[0])
+    # --- Phase 1: dense embeddings (load e5-large alone to minimise peak RAM) ---
+    all_texts = [chunk["text"] for chunk in chunks]
+    print("Phase 1/2: computing dense embeddings...")
+    embedder = create_fastembed_model(settings.embedding_model)
+    all_dense: list[list[float]] = []
+    for batch in build_batches(all_texts, batch_size):
+        all_dense.extend(embed_texts(embedder, batch, batch_size=len(batch) or 1))
+    vector_size = len(all_dense[0])
+    del embedder  # free e5-large before loading sparse model
+    import gc; gc.collect()
 
     collection_status = ensure_collection(
         client,
@@ -323,19 +358,18 @@ def run_upsert(
     )
     create_payload_indexes(client, settings.qdrant_collection_name)
 
+    # --- Phase 2: sparse BM25 embeddings + upsert ---
+    print("Phase 2/2: computing sparse embeddings and upserting...")
+    sparse_embedder = create_sparse_model()
     points_upserted = 0
-    all_batches = list(build_batches(chunks, batch_size))
-    for batch_index, chunk_batch in enumerate(all_batches):
-        if batch_index == 0:
-            vectors = first_vectors
-        else:
-            vectors = embed_texts(
-                embedder,
-                [chunk["text"] for chunk in chunk_batch],
-                batch_size=min(batch_size, len(chunk_batch)) or 1,
-            )
+    all_batches = list(build_batches(list(range(len(chunks))), batch_size))
+    for idx_batch in all_batches:
+        chunk_batch = [chunks[i] for i in idx_batch]
+        batch_texts = [all_texts[i] for i in idx_batch]
+        dense_batch = [all_dense[i] for i in idx_batch]
+        sparse_vecs = embed_sparse_texts(sparse_embedder, batch_texts)
 
-        points = build_points(chunk_batch, vectors)
+        points = build_points(chunk_batch, dense_batch, sparse_vecs)
         client.upsert(
             collection_name=settings.qdrant_collection_name,
             points=points,

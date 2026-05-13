@@ -185,6 +185,10 @@ TOPIC_BOOST_KEYWORDS: dict[str, tuple[str, ...]] = {
     "project_overview": ("project_overview", "development_", "brochure_summary"),
 }
 _EMBEDDER_CACHE: dict[str, Any] = {}
+_CROSS_ENCODER_CACHE: dict[str, Any] = {}
+_SPARSE_EMBEDDER_CACHE: dict[str, Any] = {}
+_DEFAULT_CROSS_ENCODER = "BAAI/bge-reranker-base"
+_DEFAULT_SPARSE_MODEL = "Qdrant/bm25"
 
 
 @dataclass(frozen=True)
@@ -303,6 +307,59 @@ def _get_cached_embedder(model_name: str) -> Any:
     embedder = _create_embedder(model_name)
     _EMBEDDER_CACHE[model_name] = embedder
     return embedder
+
+
+def _get_cached_cross_encoder(model_name: str) -> Any | None:
+    """Load and cache a CrossEncoder. Returns None if sentence-transformers is unavailable."""
+    if model_name in _CROSS_ENCODER_CACHE:
+        return _CROSS_ENCODER_CACHE[model_name]
+    try:
+        from sentence_transformers import CrossEncoder
+        model = CrossEncoder(model_name)
+        _CROSS_ENCODER_CACHE[model_name] = model
+        return model
+    except Exception:
+        _CROSS_ENCODER_CACHE[model_name] = None
+        return None
+
+
+def _cross_encoder_rerank(question: str, chunks: list[dict]) -> list[dict]:
+    """Re-rank chunks by blending lexical scores with cross-encoder relevance scores.
+
+    Cross-encoder compares question+chunk directly — much more accurate than
+    cosine similarity or keyword overlap for determining true relevance.
+    Falls back silently to unchanged order if the model can't be loaded.
+    """
+    import math
+
+    if not chunks:
+        return chunks
+    model = _get_cached_cross_encoder(_DEFAULT_CROSS_ENCODER)
+    if model is None:
+        return chunks
+
+    pairs = [(question, (chunk.get("text", "") or "")[:512]) for chunk in chunks]
+    try:
+        raw_scores = model.predict(pairs)
+    except Exception:
+        return chunks
+
+    # Normalize lexical scores to [0,1] so they're on the same scale as sigmoid(ce)
+    lexical_scores = [float(c.get("rerank_score", 0.0)) for c in chunks]
+    max_lex = max(lexical_scores) if max(lexical_scores) > 0 else 1.0
+
+    result = []
+    for chunk, raw_ce, lex in zip(chunks, raw_scores, lexical_scores):
+        ce = 1.0 / (1.0 + math.exp(-float(raw_ce)))   # sigmoid → [0, 1]
+        norm_lex = lex / max_lex                        # normalize → [0, 1]
+        blended = 0.3 * norm_lex + 0.7 * ce
+        new_chunk = dict(chunk)
+        new_chunk["cross_encoder_score"] = round(ce, 4)
+        new_chunk["rerank_score"] = round(blended, 4)
+        result.append(new_chunk)
+
+    result.sort(key=lambda c: c["rerank_score"], reverse=True)
+    return result
 
 
 def rerank_chunks(
@@ -734,6 +791,7 @@ def rerank_chunks(
         reranked.append(new_chunk)
 
     reranked.sort(key=lambda item: item["rerank_score"], reverse=True)
+    reranked = _cross_encoder_rerank(question, reranked)
     return reranked[:top_k]
 
 
@@ -776,9 +834,15 @@ def build_filter(project: str, sections: list[str]) -> qmodels.Filter | None:
 
 
 def embed_query(question: str, model_name: str) -> list[float]:
-    """Embed *question* using FastEmbed and return the float vector."""
+    """Embed *question* using FastEmbed and return the float vector.
+
+    Uses query_embed() when available (e.g. multilingual-e5 models use
+    'query: ' prefix for queries, 'passage: ' for documents).
+    Falls back to embed() for models that don't distinguish the two.
+    """
     embedder = _get_cached_embedder(model_name)
-    for vec in embedder.embed([question]):
+    embed_fn = getattr(embedder, "query_embed", None) or embedder.embed
+    for vec in embed_fn([question]):
         if hasattr(vec, "tolist"):
             return vec.tolist()
         return list(vec)
@@ -867,13 +931,14 @@ def retrieve(
             api_key=settings.qdrant_api_key or None,
         )
 
-    raw_points = client.query_points(
+    raw_points = _hybrid_query(
+        client=client,
         collection_name=settings.qdrant_collection_name,
-        query=query_vector,
-        query_filter=qdrant_filter,
+        dense_vector=query_vector,
+        question=question,
+        qdrant_filter=qdrant_filter,
         limit=limit,
-        with_payload=True,
-    ).points
+    )
 
     chunks = [qdrant_point_to_chunk(point) for point in raw_points if point.score >= min_score]
 
@@ -895,9 +960,83 @@ def retrieve(
     }
 
 
+def _embed_sparse_query(question: str) -> Any | None:
+    """Return a sparse SparseVector for the query using BM25. Cached to avoid per-query reloading."""
+    cached = _SPARSE_EMBEDDER_CACHE.get(_DEFAULT_SPARSE_MODEL)
+    if cached is None and _DEFAULT_SPARSE_MODEL not in _SPARSE_EMBEDDER_CACHE:
+        try:
+            from fastembed import SparseTextEmbedding
+            model = SparseTextEmbedding(model_name=_DEFAULT_SPARSE_MODEL)
+            _SPARSE_EMBEDDER_CACHE[_DEFAULT_SPARSE_MODEL] = model
+            cached = model
+        except Exception:
+            _SPARSE_EMBEDDER_CACHE[_DEFAULT_SPARSE_MODEL] = None
+            return None
+    if cached is None:
+        return None
+    try:
+        for sv in cached.embed([question]):
+            indices = sv.indices.tolist() if hasattr(sv.indices, "tolist") else list(sv.indices)
+            values = sv.values.tolist() if hasattr(sv.values, "tolist") else list(sv.values)
+            return qmodels.SparseVector(indices=indices, values=values)
+    except Exception:
+        return None
+
+
+def _hybrid_query(
+    client: QdrantClient,
+    collection_name: str,
+    dense_vector: list[float],
+    question: str,
+    qdrant_filter: Any,
+    limit: int,
+) -> list[Any]:
+    """Hybrid dense+sparse search using RRF fusion. Falls back to dense-only on error."""
+    sparse_vec = _embed_sparse_query(question)
+    if sparse_vec is None:
+        return client.query_points(
+            collection_name=collection_name,
+            query=dense_vector,
+            query_filter=qdrant_filter,
+            limit=limit,
+            with_payload=True,
+        ).points
+
+    try:
+        return client.query_points(
+            collection_name=collection_name,
+            prefetch=[
+                qmodels.Prefetch(
+                    query=dense_vector,
+                    using="dense",
+                    limit=limit,
+                    filter=qdrant_filter,
+                ),
+                qmodels.Prefetch(
+                    query=sparse_vec,
+                    using="sparse",
+                    limit=limit,
+                    filter=qdrant_filter,
+                ),
+            ],
+            query=qmodels.FusionQuery(fusion=qmodels.Fusion.RRF),
+            limit=limit,
+            with_payload=True,
+        ).points
+    except Exception:
+        return client.query_points(
+            collection_name=collection_name,
+            query=dense_vector,
+            query_filter=qdrant_filter,
+            limit=limit,
+            with_payload=True,
+        ).points
+
+
 def _embed_query_from_embedder(embedder: Any, question: str) -> list[float]:
     """Embed *question* using an already-instantiated embedder object."""
-    for vec in embedder.embed([question]):
+    embed_fn = getattr(embedder, "query_embed", None) or embedder.embed
+    for vec in embed_fn([question]):
         if hasattr(vec, "tolist"):
             return vec.tolist()
         return list(vec)
