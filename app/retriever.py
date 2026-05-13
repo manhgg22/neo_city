@@ -171,7 +171,7 @@ SECTION_BOOSTS: dict[str, dict[str, float]] = {
     "product": {"factsheet": 0.24, "pricing": 0.18, "concept_positioning": -0.08},
     "location": {"location_connectivity": 0.24, "market": 0.18},
     "market": {"market": 0.24, "location_connectivity": 0.12},
-    "sales_policy": {"sales_policy": 0.28, "price_sheet": 0.24, "pricing": -0.06},
+    "sales_policy": {"sales_policy": 0.28, "price_sheet": 0.24, "pricing": 0.06},
     "concept": {"concept_positioning": 0.30, "factsheet": 0.08},
     "project_overview": {"factsheet": 0.28, "concept_positioning": 0.14},
 }
@@ -528,15 +528,19 @@ def rerank_chunks(
             if c_section == "price_sheet":
                 rerank_score += 0.18
                 reasons.append("intent_sales_policy_price_sheet_boost: +0.18")
-            if c_section == "pricing":
-                rerank_score -= 0.24
-                reasons.append("intent_sales_policy_pricing_penalty: -0.24")
+            if c_section == "pricing" and not _topic_contains_any(c_topic_lower, ("payment_policy", "reservation_policy", "bank_loan", "discount_policy", "customer_group")):
+                rerank_score -= 0.20
+                reasons.append("intent_sales_policy_pricing_non_policy_penalty: -0.20")
             if _topic_contains_any(
                 c_topic_lower,
                 ("payment_policy", "booking_policy", "discount_policy", "combo_", "early_buyer", "supplemental_incentives"),
             ):
                 rerank_score += 0.28
                 reasons.append("intent_sales_policy_topic_boost: +0.28")
+            # payment_policy in pricing section deserves extra boost when asking about thanh toan
+            if c_section == "pricing" and "payment_policy" in c_topic_lower and _has_any_term(q_norm, ["thanh toan", "dot thanh toan", "tien do thanh toan", "phuong thuc"]):
+                rerank_score += 0.32
+                reasons.append("intent_sales_policy_pricing_payment_policy_boost: +0.32")
             if not asks_price and "pricing_principles" in c_topic_lower:
                 rerank_score -= 0.40
                 reasons.append("intent_sales_policy_pricing_principles_penalty: -0.40")

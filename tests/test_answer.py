@@ -873,3 +873,633 @@ def test_chatbot_answer_from_retrieval_blocked_passthrough() -> None:
     }
     answer = chatbot_answer_from_retrieval(retrieval)
     assert answer == INVESTMENT_RETURN_RESPONSE
+
+
+# ===========================================================================
+# 20-question manual evaluation tests
+# ===========================================================================
+#
+# These tests use mock chunks (no Qdrant) and verify that chatbot_answer_from_retrieval
+# produces answers with required key facts, correct caution wording, and no
+# raw chunk headers or unsupported legal/financial guarantees.
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# Shared fixtures for 20-question tests
+# ---------------------------------------------------------------------------
+
+_LEGAL_FULL_TEXT = (
+    "Tình trạng pháp lý hiện tại:\n"
+    "Giai đoạn dự án: Đã được phê duyệt quy hoạch và xây dựng\n"
+    "Tình trạng mở bán: Chưa mở bán\n"
+    "Tình trạng huy động vốn: Chưa huy động vốn từ khách hàng\n"
+    "Cảnh báo: Không sử dụng tài liệu định hướng như thông báo mở bán chính thức\n"
+    "Không được thu tiền booking/giữ chỗ/đặt cọc khi chưa đủ điều kiện kinh doanh"
+)
+
+_PRICING_FULL_TEXT = (
+    "Khung giá bán dự kiến – sản phẩm căn hộ cao tầng:\n"
+    "Studio+: 54–57 triệu đồng/m², khoảng 1,73–2,17 tỷ đồng/căn\n"
+    "1PN+1: 51–54 triệu đồng/m², khoảng 2,15–2,70 tỷ đồng/căn\n"
+    "2PN: 48–51 triệu đồng/m², khoảng 2,80–3,57 tỷ đồng/căn\n"
+    "2PN+1: 45–48 triệu đồng/m², khoảng 3,15–3,84 tỷ đồng/căn\n"
+    "3PN: 42–45 triệu đồng/m², khoảng 3,78–4,95 tỷ đồng/căn\n"
+    "Định hướng giá: 42–57 triệu đồng/m², tùy tòa, tầng, view, thời điểm mở bán."
+)
+
+_PRICING_LOWRISE_TEXT = (
+    "Khung giá bán dự kiến – sản phẩm thấp tầng:\n"
+    "Shophouse: 95–160 triệu đồng/m² đất, tổng giá trị khoảng 9,5–22 tỷ đồng/căn\n"
+    "Townhouse: 75–115 triệu đồng/m² đất, tổng giá trị khoảng 6,5–13,5 tỷ đồng/căn\n"
+    "Villa/Courtyard: 55–95 triệu đồng/m² đất, tổng giá trị khoảng 3,3–7,6 tỷ đồng/căn\n"
+    "Giá phụ thuộc vị trí: gần hồ, quảng trường, retail street."
+)
+
+_SALES_POLICY_FULL_TEXT = (
+    "Chính sách thanh toán chuẩn:\n"
+    "Booking: 50 triệu đồng\n"
+    "Ký HĐMB: 10% giá trị hợp đồng\n"
+    "Hỗ trợ vay tới 70%, ân hạn nợ gốc 24 tháng\n"
+    "Hỗ trợ lãi suất 0% trong 18 tháng hoặc đến khi nhận nhà\n"
+    "Chiết khấu thanh toán nhanh 95%: 7–9%\n"
+    "NEO START (người trẻ mua lần đầu): Booking 30 triệu, HĐMB 10%, vay 70%, ân hạn 24 tháng\n"
+    "Kèm voucher smart home, góc làm việc tại nhà, voucher lifestyle"
+)
+
+_CONCEPT_TEXT = (
+    "Tagline: 'Một trạng thái sống mới'\n"
+    "NEO CITY không bán một căn nhà – bán một trạng thái sống mới.\n"
+    "Không định vị là khu ở ngủ vùng ven; là khu đô thị có hệ sinh thái sống đầy đủ.\n"
+    "Hệ sinh thái: Neo Lake (hồ trung tâm), Neo Square (quảng trường), R&D Center, Shopping Mall, "
+    "Camping, SUP/Kayak.\n"
+    "Sống – làm việc – kết nối – tái tạo năng lượng trong cùng một hệ sinh thái."
+)
+
+_PERSONA_TEXT = (
+    "Nhóm khách hàng mục tiêu:\n"
+    "1. Gia đình trẻ: 2PN, 2PN+1, 3PN nhỏ; cần trường học, tiện ích trẻ em, cộng đồng an toàn.\n"
+    "2. Người trẻ độc lập: Studio+, 1PN+1, 2PN nhỏ; hybrid work, remote work.\n"
+    "3. Nhà đầu tư trung lưu: townhouse, shophouse; đầu tư dài hạn.\n"
+    "4. Người làm công nghệ: 1PN+1, 2PN với góc làm việc; R&D center, co-working."
+)
+
+_AMENITIES_TEXT = (
+    "Tiện ích nội khu NEO CITY:\n"
+    "Neo Lake: hồ trung tâm 3ha, SUP, Kayak, đường ven hồ.\n"
+    "Neo Square: quảng trường ngoài trời, sự kiện cộng đồng, camping, picnic.\n"
+    "R&D Hub: co-working space, learning hub, digital lab.\n"
+    "Shopping Mall + Retail Street: F&B, cửa hàng, spa.\n"
+    "Mầm non & Learning Hub, Gym, bể bơi, sân thể thao."
+)
+
+_LOCATION_TEXT = (
+    "Vị trí kết nối chiến lược:\n"
+    "NEO CITY tọa lạc tại Mê Linh, Hà Nội.\n"
+    "Sân bay Nội Bài: 15–20 phút (qua Vành đai 4/cầu Nội Bài).\n"
+    "Trung tâm Hà Nội: 30–45 phút qua Vành đai 4 hoặc Quốc lộ 23.\n"
+    "Đông Anh: 10 phút, Samsung, các khu công nghiệp.\n"
+    "Thông tin nằm trong phần: Liên kết vùng và Kết nối giao thông chiến lược."
+)
+
+_MARKET_TEXT = (
+    "Tiềm năng thị trường Mê Linh:\n"
+    "Hành lang phát triển phía Tây Bắc Hà Nội.\n"
+    "Vành đai 4 qua Mê Linh là yếu tố kỳ vọng cải thiện kết nối.\n"
+    "Tài liệu không đưa ra cam kết tăng giá hay lợi nhuận.\n"
+    "Hạ tầng và thị trường chỉ là cơ sở tham khảo, không phải cam kết đầu tư."
+)
+
+_SALES_STRATEGY_TEXT = (
+    "Xử lý objection 'xa trung tâm':\n"
+    "Không nên phản biện 'không xa'. Xoay câu chuyện sang 'một cực sống mới'.\n"
+    "NEO CITY: rời áp lực lõi đô thị, có môi trường thoáng hơn, đủ tiện ích.\n"
+    "Điểm mạnh: hồ trung tâm, quảng trường, R&D, mall, cuộc sống cuối tuần trong nội khu."
+)
+
+
+def _mk_legal_chunk_full() -> dict:
+    return {
+        "id": "neo_city_legal_004",
+        "section": "legal",
+        "topic": "legal_status_and_warnings",
+        "text": _LEGAL_FULL_TEXT,
+        "legal_sensitivity": "critical",
+        "score": 0.75,
+        "rerank_score": 0.75,
+    }
+
+
+def _mk_pricing_apt_chunk() -> dict:
+    return {
+        "id": "neo_city_pricing_002",
+        "section": "pricing",
+        "topic": "apartment_pricing",
+        "text": _PRICING_FULL_TEXT,
+        "legal_sensitivity": "high",
+        "score": 0.78,
+        "rerank_score": 0.78,
+    }
+
+
+def _mk_pricing_lowrise_chunk() -> dict:
+    return {
+        "id": "neo_city_pricing_003",
+        "section": "price_sheet",
+        "topic": "lowrise_pricing",
+        "text": _PRICING_LOWRISE_TEXT,
+        "legal_sensitivity": "high",
+        "score": 0.75,
+        "rerank_score": 0.75,
+    }
+
+
+def _mk_policy_chunk() -> dict:
+    return {
+        "id": "neo_city_sales_policy_003",
+        "section": "sales_policy",
+        "topic": "payment_policy",
+        "text": _SALES_POLICY_FULL_TEXT,
+        "legal_sensitivity": "high",
+        "score": 0.70,
+        "rerank_score": 0.70,
+    }
+
+
+def _mk_concept_chunk() -> dict:
+    return {
+        "id": "neo_city_concept_001",
+        "section": "concept_positioning",
+        "topic": "brand_positioning",
+        "text": _CONCEPT_TEXT,
+        "legal_sensitivity": "low",
+        "score": 0.72,
+        "rerank_score": 0.72,
+    }
+
+
+def _mk_persona_chunk() -> dict:
+    return {
+        "id": "neo_city_personas_001",
+        "section": "personas",
+        "topic": "target_personas",
+        "text": _PERSONA_TEXT,
+        "legal_sensitivity": "low",
+        "score": 0.70,
+        "rerank_score": 0.70,
+    }
+
+
+def _mk_amenities_chunk() -> dict:
+    return {
+        "id": "neo_city_factsheet_010",
+        "section": "factsheet",
+        "topic": "amenities",
+        "text": _AMENITIES_TEXT,
+        "legal_sensitivity": "low",
+        "score": 0.68,
+        "rerank_score": 0.68,
+    }
+
+
+def _mk_location_chunk() -> dict:
+    return {
+        "id": "neo_city_location_001",
+        "section": "location_connectivity",
+        "topic": "transportation_links",
+        "text": _LOCATION_TEXT,
+        "legal_sensitivity": "low",
+        "score": 0.70,
+        "rerank_score": 0.70,
+    }
+
+
+def _mk_market_chunk() -> dict:
+    return {
+        "id": "neo_city_market_001",
+        "section": "market",
+        "topic": "market_potential",
+        "text": _MARKET_TEXT,
+        "legal_sensitivity": "medium",
+        "score": 0.68,
+        "rerank_score": 0.68,
+    }
+
+
+def _mk_strategy_chunk() -> dict:
+    return {
+        "id": "neo_city_strategy_001",
+        "section": "sales_strategy",
+        "topic": "objection_handling",
+        "text": _SALES_STRATEGY_TEXT,
+        "legal_sensitivity": "low",
+        "score": 0.65,
+        "rerank_score": 0.65,
+    }
+
+
+def _retrieval(question, intent, risk, must_legal, chunks, sections=None):
+    return {
+        "question": question,
+        "intent": intent,
+        "risk_level": risk,
+        "must_use_legal_only": must_legal,
+        "target_sections": sections or [],
+        "chunks": chunks,
+        "reason": None,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Q01 — Dự án đã đủ điều kiện mở bán và nhận đặt cọc chưa?
+# ---------------------------------------------------------------------------
+
+
+def test_q01_opening_sale_not_qualified() -> None:
+    r = _retrieval(
+        "Dự án đã đủ điều kiện mở bán và nhận đặt cọc chưa?",
+        "legal", "critical", True, [_mk_legal_chunk_full()], ["legal"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    assert "chưa mở bán chính thức" in ans.lower()
+    assert "huy động vốn" in ans.lower()
+    assert "|" not in ans
+    assert "đã đủ điều kiện mở bán" not in ans.lower()
+
+
+# ---------------------------------------------------------------------------
+# Q02 — Nếu chưa mở bán thì bảng giá có ý nghĩa gì? (retrieval error → fallback)
+# ---------------------------------------------------------------------------
+
+
+def test_q02_no_chunks_returns_fallback() -> None:
+    r = _retrieval(
+        "Nếu chưa mở bán thì bảng giá trong tài liệu có ý nghĩa gì?",
+        "legal", "critical", True, [], ["legal"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    assert ans == FALLBACK_ANSWER
+
+
+# ---------------------------------------------------------------------------
+# Q03 — Căn 2PN+1 tổng giá dự kiến bao nhiêu và có phải giá chính thức không?
+# ---------------------------------------------------------------------------
+
+
+def test_q03_pricing_2pn_plus1_not_official() -> None:
+    r = _retrieval(
+        "Căn 2PN+1 tổng giá dự kiến bao nhiêu và có phải giá chính thức không?",
+        "pricing", "high", False, [_mk_pricing_apt_chunk()], ["pricing"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    assert "2PN+1" in ans or "2pn+1" in ans.lower()
+    assert any(p in ans for p in ["3,15", "3,84", "45–48"])
+    assert "chưa phải giá" in ans.lower() or "dự kiến" in ans.lower()
+    assert "|" not in ans
+    assert "khoảng khoảng" not in ans.lower()
+
+
+# ---------------------------------------------------------------------------
+# Q04 — Shophouse giá bao nhiêu và có được cam kết kinh doanh tốt không?
+# ---------------------------------------------------------------------------
+
+
+def test_q04_shophouse_no_business_guarantee() -> None:
+    r = _retrieval(
+        "Shophouse giá bao nhiêu và có được cam kết kinh doanh tốt không?",
+        "pricing", "high", False, [_mk_pricing_lowrise_chunk()], ["pricing", "price_sheet"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    assert any(p in ans for p in ["9,5", "22", "shophouse", "Shophouse"])
+    assert "không cam kết" in ans.lower() or "tài liệu không" in ans.lower()
+    assert "|" not in ans
+
+
+# ---------------------------------------------------------------------------
+# Q05 — Gia đình trẻ mua 2PN thì nên xem sản phẩm, chính sách hay persona nào?
+# ---------------------------------------------------------------------------
+
+
+def test_q05_three_layer_advisory() -> None:
+    r = _retrieval(
+        "Gia đình trẻ mua 2PN thì nên xem sản phẩm, chính sách hay persona nào?",
+        "persona", "low", False, [_mk_persona_chunk()], ["personas"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    assert "persona" in ans.lower() or "nhu cầu" in ans.lower()
+    assert "sản phẩm" in ans.lower()
+    assert "chính sách" in ans.lower()
+    assert "|" not in ans
+
+
+# ---------------------------------------------------------------------------
+# Q06 — Người trẻ mua 1PN+1 có chính sách hỗ trợ gì?
+# ---------------------------------------------------------------------------
+
+
+def test_q06_sales_policy_young_buyer() -> None:
+    r = _retrieval(
+        "Người trẻ mua 1PN+1 có chính sách hỗ trợ gì?",
+        "sales_policy", "high", False, [_mk_policy_chunk()], ["sales_policy"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    assert any(p in ans for p in ["NEO START", "30 triệu", "70%", "24 tháng", "vay"])
+    assert "thay đổi" in ans.lower() or "định hướng" in ans.lower()
+    assert "|" not in ans
+
+
+# ---------------------------------------------------------------------------
+# Q07 — Nếu khách hỏi xa trung tâm quá thì sales nên xử lý thế nào?
+# ---------------------------------------------------------------------------
+
+
+def test_q07_distance_objection_handling() -> None:
+    r = _retrieval(
+        "Nếu khách hỏi xa trung tâm quá thì sales nên xử lý thế nào?",
+        "sales_strategy", "medium", False, [_mk_strategy_chunk()], ["sales_strategy"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    assert "trung tâm" in ans.lower()
+    assert any(kw in ans.lower() for kw in ["sống mới", "tiện ích", "hồ", "quảng trường", "cực sống"])
+    assert "|" not in ans
+
+
+# ---------------------------------------------------------------------------
+# Q08 — Mê Linh đi Nội Bài bao lâu và thông tin này nằm trong phần nào?
+# ---------------------------------------------------------------------------
+
+
+def test_q08_noibai_travel_time() -> None:
+    r = _retrieval(
+        "Mê Linh đi Nội Bài bao lâu và thông tin này nằm trong phần nào?",
+        "location", "medium", False, [_mk_location_chunk()], ["location_connectivity"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    assert any(p in ans for p in ["15", "20", "Nội Bài", "nội bài"])
+    assert "|" not in ans
+
+
+# ---------------------------------------------------------------------------
+# Q09 — Vành đai 4 có đảm bảo NEO CITY tăng giá không?
+# ---------------------------------------------------------------------------
+
+
+def test_q09_vanh_dai_4_no_price_guarantee() -> None:
+    r = _retrieval(
+        "Vành đai 4 có đảm bảo NEO CITY tăng giá không?",
+        "market", "medium", False, [_mk_market_chunk()], ["market"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    ans_lower = ans.lower()
+    # Must express that no guarantee is given
+    assert "tham khảo" in ans_lower or "không phải cam kết" in ans_lower or "không đưa ra cam kết" in ans_lower
+    # Must NOT positively assert price will rise
+    assert "chắc chắn tăng giá" not in ans_lower
+    assert "đảm bảo tăng giá" not in ans_lower
+    assert "bảo đảm tăng giá" not in ans_lower
+
+
+# ---------------------------------------------------------------------------
+# Q10 — NEO CITY có cam kết lợi nhuận cho nhà đầu tư không?
+# ---------------------------------------------------------------------------
+
+
+def test_q10_no_profit_guarantee() -> None:
+    r = _retrieval(
+        "NEO CITY có cam kết lợi nhuận cho nhà đầu tư không?",
+        "market", "medium", False, [_mk_market_chunk()], ["market"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    # Guaranteed profit question → blocked by guardrails
+    assert "cam kết lợi nhuận" not in ans.lower() or "không" in ans.lower()
+    assert "chắc chắn sinh lời" not in ans.lower()
+
+
+# ---------------------------------------------------------------------------
+# Q11 — Có được ký HĐMB tại thời điểm hiện tại không?
+# ---------------------------------------------------------------------------
+
+
+def test_q11_hdmb_not_confirmed() -> None:
+    r = _retrieval(
+        "Có được ký HĐMB tại thời điểm hiện tại không?",
+        "legal", "critical", True, [_mk_legal_chunk_full()], ["legal"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    # HĐMB appears as "HĐMB" (with đ), lowercased is "hđmb" not "hdmb"
+    assert any(kw in ans for kw in ["HĐMB", "hợp đồng mua bán"])
+    assert "chưa mở bán" in ans.lower() or "không xác nhận" in ans.lower()
+    assert "|" not in ans
+
+
+# ---------------------------------------------------------------------------
+# Q12 — Booking 50 triệu có hợp pháp không nếu dự án chưa mở bán?
+# ---------------------------------------------------------------------------
+
+
+def test_q12_booking_not_legal() -> None:
+    r = _retrieval(
+        "Booking 50 triệu có hợp pháp không nếu dự án chưa mở bán?",
+        "legal", "critical", True, [_mk_legal_chunk_full()], ["legal"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    assert "chưa mở bán chính thức" in ans.lower()
+    assert any(kw in ans.lower() for kw in ["không nên", "chưa đủ điều kiện", "không hợp pháp",
+                                              "chưa có văn bản"])
+    assert "|" not in ans
+
+
+# ---------------------------------------------------------------------------
+# Q13 — NEO CITY khác gì khu đô thị vùng ven bình thường?
+# ---------------------------------------------------------------------------
+
+
+def test_q13_concept_differentiation() -> None:
+    r = _retrieval(
+        "NEO CITY khác gì khu đô thị vùng ven bình thường?",
+        "sales_strategy", "medium", False,
+        [_mk_concept_chunk(), _mk_strategy_chunk()], ["sales_strategy", "concept_positioning"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    # Must return concept differentiation, not raw persona
+    assert any(kw in ans.lower() for kw in ["trạng thái sống mới", "hệ sinh thái", "hồ trung tâm",
+                                              "không định vị", "khác biệt"])
+    assert "|" not in ans
+
+
+# ---------------------------------------------------------------------------
+# Q14 — Một trạng thái sống mới có phải chỉ là slogan không?
+# ---------------------------------------------------------------------------
+
+
+def test_q14_tagline_not_just_slogan() -> None:
+    r = _retrieval(
+        "Một trạng thái sống mới có phải chỉ là slogan không?",
+        "concept", "low", False, [_mk_concept_chunk()], ["concept_positioning"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    assert "không chỉ là slogan" in ans.lower() or "định vị" in ans.lower() or "trục" in ans.lower()
+    assert "|" not in ans
+
+
+# ---------------------------------------------------------------------------
+# Q15 — Tiện ích nào thật sự tạo đời sống cộng đồng?
+# ---------------------------------------------------------------------------
+
+
+def test_q15_community_amenities() -> None:
+    r = _retrieval(
+        "Tiện ích nào thật sự tạo đời sống cộng đồng?",
+        "amenities", "low", False, [_mk_amenities_chunk()], ["factsheet"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    assert any(kw in ans.lower() for kw in ["hồ", "quảng trường", "neo lake", "neo square",
+                                              "r&d", "cộng đồng"])
+    assert "|" not in ans
+
+
+# ---------------------------------------------------------------------------
+# Q16 — R&D Center có liên quan gì đến người làm công nghệ?
+# ---------------------------------------------------------------------------
+
+
+def test_q16_rnd_tech_connection() -> None:
+    r = _retrieval(
+        "R&D Center có liên quan gì đến người làm công nghệ?",
+        "amenities", "low", False,
+        [_mk_amenities_chunk(), _mk_persona_chunk()], ["factsheet", "personas"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    assert any(kw in ans.lower() for kw in ["r&d", "co-working", "learning hub", "công nghệ",
+                                              "hybrid", "làm việc"])
+    assert "|" not in ans
+
+
+# ---------------------------------------------------------------------------
+# Q17 — Nếu khách có 3 tỷ thì chọn loại căn nào?
+# ---------------------------------------------------------------------------
+
+
+def test_q17_budget_3ty_recommendation() -> None:
+    r = _retrieval(
+        "Nếu khách có 3 tỷ thì chọn loại căn nào?",
+        "pricing", "high", False, [_mk_pricing_apt_chunk()], ["pricing"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    # 3 tỷ fits 2PN (2.80–3.57) or 1PN+1 (2.15–2.70)
+    assert any(p in ans for p in ["2PN", "1PN+1", "2,80", "3,57", "2,15", "2,70"])
+    assert "dự kiến" in ans.lower() or "chưa phải giá chính thức" in ans.lower()
+    assert "|" not in ans
+
+
+# ---------------------------------------------------------------------------
+# Q18 — Nếu khách có 10 tỷ thì chọn shophouse hay townhouse?
+# ---------------------------------------------------------------------------
+
+
+def test_q18_budget_10ty_shophouse_vs_townhouse() -> None:
+    r = _retrieval(
+        "Nếu khách có 10 tỷ thì chọn shophouse hay townhouse?",
+        "product", "medium", False,
+        [_mk_pricing_lowrise_chunk()], ["factsheet", "pricing"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    assert any(p in ans for p in ["townhouse", "Townhouse"])
+    assert any(p in ans for p in ["shophouse", "Shophouse"])
+    assert any(p in ans for p in ["6,5", "13,5", "9,5", "22"])
+    assert "dự kiến" in ans.lower() or "chưa phải giá chính thức" in ans.lower()
+    assert "|" not in ans
+
+
+# ---------------------------------------------------------------------------
+# Q19 — Tài liệu có nói gì về rủi ro pháp lý khi truyền thông dự án không?
+# ---------------------------------------------------------------------------
+
+
+def test_q19_comms_legal_risk() -> None:
+    r = _retrieval(
+        "Tài liệu có nói gì về rủi ro pháp lý khi truyền thông dự án không?",
+        "legal", "critical", True, [_mk_legal_chunk_full()], ["legal"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    assert any(kw in ans.lower() for kw in ["truyền thông", "định hướng", "văn bản pháp lý",
+                                              "cảnh báo", "chính thức"])
+    assert "|" not in ans
+    # Must NOT positively claim project has met requirements (the phrase may appear in negative context)
+    ans_lower = ans.lower()
+    if "đã đủ điều kiện" in ans_lower:
+        # Acceptable only in negative context like "không nên...như dự án đã đủ điều kiện"
+        assert "không nên" in ans_lower or "khi chưa" in ans_lower
+
+
+# ---------------------------------------------------------------------------
+# Q20 — Multi-intent: giá 2PN, tình trạng mở bán, và cảnh báo pháp lý
+# ---------------------------------------------------------------------------
+
+
+def test_q20_multi_intent_three_parts() -> None:
+    r = _retrieval(
+        "Hãy trả lời: giá 2PN, tình trạng mở bán, và cảnh báo pháp lý hiện tại.",
+        "legal", "critical", True, [_mk_legal_chunk_full()], ["legal"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    # Must have pricing info for 2PN
+    assert any(p in ans for p in ["2PN", "2pn", "48–51", "2,80"])
+    # Must have legal status
+    assert "chưa mở bán" in ans.lower()
+    # Must have legal warning
+    assert any(kw in ans.lower() for kw in ["huy động vốn", "định hướng", "pháp lý"])
+    assert "|" not in ans
+
+
+# ---------------------------------------------------------------------------
+# Cross-cutting: no raw markdown headers in any concise answer
+# ---------------------------------------------------------------------------
+
+
+def test_no_raw_markdown_headers_in_legal_answer() -> None:
+    r = _retrieval(
+        "Tình trạng pháp lý dự án NEO CITY?",
+        "legal", "critical", True, [_mk_legal_chunk_full()], ["legal"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    assert "## " not in ans
+    assert "### " not in ans
+
+
+def test_no_guaranteed_profit_claim_in_market_answer() -> None:
+    r = _retrieval(
+        "Đầu tư NEO CITY có đảm bảo tăng giá không?",
+        "market", "medium", False, [_mk_market_chunk()], ["market"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    ans_lower = ans.lower()
+    # Must not positively assert guaranteed appreciation
+    assert "chắc chắn tăng giá" not in ans_lower
+    assert "đảm bảo sẽ tăng giá" not in ans_lower
+    assert "bảo đảm tăng giá" not in ans_lower
+    # "cam kết tăng giá" may appear in negative context ("không phải cam kết tăng giá")
+    if "cam kết tăng giá" in ans_lower:
+        assert "không phải" in ans_lower or "không đưa ra" in ans_lower
+
+
+def test_pricing_answer_no_khoang_khoang_duplication() -> None:
+    chunk = {
+        "id": "neo_city_pricing_table_001",
+        "section": "pricing",
+        "topic": "apartment_pricing",
+        "text": (
+            "| Loại sản phẩm | Diện tích | Giá bán dự kiến | Tổng giá trị dự kiến |\n"
+            "| 2PN | 58–70m² | 48–51 triệu/m² | Khoảng 2,80–3,57 tỷ/căn |\n"
+        ),
+        "legal_sensitivity": "high",
+        "score": 0.75,
+        "rerank_score": 0.75,
+    }
+    r = _retrieval(
+        "Giá căn 2PN dự kiến bao nhiêu?",
+        "pricing", "high", False, [chunk], ["pricing"],
+    )
+    ans = chatbot_answer_from_retrieval(r)
+    ans_lower = ans.lower()
+    assert "khoảng khoảng" not in ans_lower
+    assert "khoang khoang" not in ans_lower

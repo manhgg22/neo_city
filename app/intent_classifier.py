@@ -783,7 +783,7 @@ def _match_terms(normalized: str, keywords: list[str]) -> bool:
 
 _LEGAL_SECTIONS = ["legal"]
 _PRICING_SECTIONS = ["pricing", "price_sheet"]
-_SALES_POLICY_SECTIONS = ["sales_policy", "price_sheet"]
+_SALES_POLICY_SECTIONS = ["sales_policy", "price_sheet", "pricing"]
 _MARKET_SECTIONS = ["market"]
 _LOCATION_SECTIONS = ["location_connectivity", "market"]
 _SALES_STRATEGY_SECTIONS = ["sales_strategy", "personas"]

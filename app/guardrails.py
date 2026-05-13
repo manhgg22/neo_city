@@ -114,6 +114,11 @@ _DEPOSIT_KEYWORDS: tuple[str, ...] = (
     "nhan coc",
     "co the dat coc",
     "dat cho",
+    "giu cho",
+    "chuyen tien giu cho",
+    "chuyen tien dat cho",
+    "booking",
+    "chuyen khoan",
 )
 _OPENING_KEYWORDS: tuple[str, ...] = (
     "mo ban",
@@ -121,6 +126,10 @@ _OPENING_KEYWORDS: tuple[str, ...] = (
     "chinh thuc mo ban",
     "duoc ban chua",
     "duoc phep ban",
+    "du dieu kien",
+    "hdmb",
+    "hop dong mua ban",
+    "ky hop dong",
 )
 _FUNDRAISING_KEYWORDS: tuple[str, ...] = (
     "huy dong von",
